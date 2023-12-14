@@ -1,0 +1,15 @@
+{
+    "mwCode": 2123,
+    "errorCodes": {
+        "mwCodeError_LB": 4321,
+        "mwCodeError_MP": 4211
+    },
+    "db": {
+        "path": "./db",
+        "name": "db.json",
+        "tables": [
+            "PLAYERS",
+            "TEAMS"
+        ]
+    }
+}
