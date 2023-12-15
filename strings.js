@@ -41,6 +41,14 @@ class Strings {
         return isValid
     };
 
+    isValidClan(name) {
+        // Find first [, then find first ], check if 0 < ].index - [.index < 8, return clan name (or false if invalid)
+        let lBracketIndex = name.indexOf("[");
+        let rBracketIndex = name.indexOf("]");
+        if (lBracketIndex < 0 || rBracketIndex < 0 || rBracketIndex - lBracketIndex >= 8 || rBracketIndex - lBracketIndex <= 0) return false;
+        return name.substring(lBracketIndex + 1, rBracketIndex);
+    }
+
     convertToCharcode(string) {
         string = string.trim();
         let charCodeArray = []

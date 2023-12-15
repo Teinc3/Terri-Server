@@ -4,10 +4,43 @@
         "mwCodeError_LB": 4321,
         "mwCodeError_MP": 4211,
         "MAX_WS_TOLERANCE_REACHED": 4281,
-        "lobbyTimeout": 4207
+        "lobbyTimeout": 4207,
+        "invalidName": 4214
     },
     "MAX_WS_TOLERANCE": 3E4,
     "MAX_NAME_LENGTH": 20,
+    "preview": {
+        "previewInterval": 7E3,
+        "updateInterval": 1E3,
+        "MAX_PREVIEW_GAME_COUNT": 6,
+        "MODE_WEIGHTS": {
+            "DUEL_CHANCE": 0.4,
+            "TEAM_CHANCE": 0.25,
+            "FFA_CHANCE": 0.3,
+            "ZOMBIE_CHANCE": 0.05,
+            "NFS_FFA_CHANCE": 0.15,
+            "CONTEST_CHANCE": 0.02
+        },
+        "MAP_WEIGHTS": {
+            "DUEL": {
+                "1": 0.45,
+                "NONE": [0, 1, 2, 7, 9]
+            },
+            "ZOMBIE": {
+                "11": 50,
+                "NONE": [11]
+            }
+        }
+    },
+    "modes": {
+        "TEAMS_MAX": 6,
+        "FFA": 7,
+        "DUEL": 8,
+        "ZOMBIE": 9,
+        "NFS": 10
+    },
+    "mapCount": 16,
+    "PREVIEW_TTL": 42,
     "db": {
         "path": "./db/db.db",
         "tables": [

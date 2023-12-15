@@ -33,9 +33,6 @@ class Leaderboard {
     }
 
     handleLoadLeaderboard(client, request) {
-        if (request.mwCode !== constants.mwCode) {
-            return client.ws.close(constants.errorCodes.mwCodeError_LB)
-        }
 
         // Request 1v1 leaderboard from sql
         const db = new sqlite3.Database(constants.db.path)

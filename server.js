@@ -1,5 +1,6 @@
 const unwrapper = new (require("./unwrapper.js"))()
 const leaderboard = new (require("./leaderboard.js"))()
+const lobbyManager = new (require("./lobbyManager.js"))()
 const constants = require("./constants.json")
 
 class WSServer {
@@ -19,7 +20,8 @@ class WSServer {
             ws,
             sessionID: this.sessionID += 1,
             timeoutInterval: null,
-            lastAction: null
+            lastAction: null,
+            info: null
         }
         this.handleTimeoutInterval(client, null);
         this.clients.add(client)
@@ -31,6 +33,10 @@ class WSServer {
             // Unwrap the request
             const request = unwrapper.unwrap(m)
 
+            if (request?.mwCode !== constants.mwCode) {
+                return client.ws.close(constants.errorCodes.mwCodeError_LB)
+            }
+
             // Handle the request
             switch (request.action) {
                 case "HEARTBEAT":
@@ -39,6 +45,9 @@ class WSServer {
                     leaderboard.handleLoadLeaderboard(client, request)
                     break
                 case "LOBBY":
+                    // Handle Lobby, transfer client object to lobby object
+                    lobbyManager.assignLobby(client, request)
+                    this.clients.delete(client)
                     break;
                 case "ERROR":
                     return
