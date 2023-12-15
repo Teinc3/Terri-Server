@@ -1,4 +1,4 @@
-const strings = new (require('./strings'))()
+const strings = new (require('./strings.js'))()
 
 class Wrapper {
     constructor() {
@@ -20,7 +20,7 @@ class Wrapper {
 
     wrapLeaderboard(id, position, entries) {
         const arrayBitCount = entries.reduce((acc, entry) => {
-            return acc + strings.convertToCharcode(entry.NAME).length + 14 + 5
+            return acc + strings.convertToCharcode(entry.USERNAME).length * 10 + 14 + 5
         }, 1 + 2 + 1 + 1 + 16 + 4)
         const array = new Uint8Array(this.getByteCount(arrayBitCount));
         this.index = 0;
@@ -32,10 +32,11 @@ class Wrapper {
         this.setBits(array, 4, entries.length);
         for (const entry of entries) {
             this.setBits(array, 14, entry.ELO);
-            const name = strings.convertToCharcode(entry.NAME);
-            const length = name.length
-            this.setBits(array, 5, length);
-            this.setBits(array, length, name);
+            const name = strings.convertToCharcode(entry.USERNAME);
+            this.setBits(array, 5, name.length);
+            for (const charCode of name) {
+                this.setBits(array, 10, charCode);
+            }
         }
         return array
     }

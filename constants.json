@@ -2,11 +2,12 @@
     "mwCode": 2123,
     "errorCodes": {
         "mwCodeError_LB": 4321,
-        "mwCodeError_MP": 4211
+        "mwCodeError_MP": 4211,
+        "MAX_HEARTBEAT_TOLERANCE_REACHED": 4281
     },
+    "MAX_HEARTBEAT_TOLERANCE": 3E4,
     "db": {
-        "path": "./db",
-        "name": "db.json",
+        "path": "./db/db.db",
         "tables": [
             "PLAYERS",
             "TEAMS"

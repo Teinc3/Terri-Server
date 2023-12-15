@@ -1,4 +1,4 @@
-const strings = new (require('./strings'))()
+const strings = new (require('./strings.js'))()
 
 class Unwrapper {
     constructor() {
@@ -6,11 +6,8 @@ class Unwrapper {
     }
 
     readBits(array, bitsToDecode) {
-        let data;
-        let bitIndex;
-        let byteIndex;
-        let currentBit;
-        for (; currentBit < this.index + bitsToDecode; currentBit++) {
+        let data = 0;
+        for (let bitIndex, byteIndex, currentBit = this.index; currentBit < this.index + bitsToDecode; currentBit++) {
             byteIndex = Math.floor(currentBit/8);
             bitIndex = 7 - currentBit % 8;
             data |= (array[byteIndex] >> bitIndex & 1) << this.index + bitsToDecode - currentBit - 1;
@@ -79,10 +76,10 @@ class Unwrapper {
         switch (type) {
             case 0: {
                 return {
-                    action: "leaderboard",
+                    action: "LEADERBOARD",
                     mwCode: this.readBits(array, 14),
                     id: this.readBits(array, 1),
-                    position: this.readBits(16)
+                    position: this.readBits(array, 16)
                 }
             }
             default: {

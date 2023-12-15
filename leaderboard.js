@@ -1,6 +1,6 @@
-const constants = require("constants.json")
+const constants = require("./constants.json")
 const sqlite3 = require("sqlite3").verbose()
-const wrapper = new (require("wrapper"))()
+const wrapper = new (require("./wrapper.js"))()
 
 class Leaderboard {
 
@@ -29,9 +29,6 @@ class Leaderboard {
                 // Resolve the Promise with the adjusted position
                 resolve(position);
             });
-
-            // Close the database connection after the operation
-            db.close();
         });
     }
 
@@ -43,9 +40,9 @@ class Leaderboard {
         // Request 1v1 leaderboard from sql
         const db = new sqlite3.Database(constants.db.path)
         this.getIndex(db, request.position).then((position) => {
-            db.all(`SELECT NAME, ELO FROM ${constants.db.tables[0]} LIMIT 10 OFFSET ${position * 10}`, (err, rows) => {
+            db.all(`SELECT USERNAME, ELO FROM ${constants.db.tables[0]} LIMIT 10 OFFSET ${position * 10}`, (err, rows) => {
                 if (err) {
-                    return null
+                    return console.log(err)
                 }
 
                 // Send the leaderboard
@@ -55,7 +52,7 @@ class Leaderboard {
                 db.close()
             });
         }).catch((err) => {
-            return null
+            return console.log(err)
         });
     }
 }

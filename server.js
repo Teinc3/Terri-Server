@@ -1,5 +1,6 @@
-const unwrapper = new (require("unwrapper"))()
-const leaderboard = new (require("leaderboard"))()
+const unwrapper = new (require("./unwrapper.js"))()
+const leaderboard = new (require("./leaderboard.js"))()
+const constants = require("./constants.json")
 
 class WSServer {
     constructor(server) {
@@ -18,7 +19,6 @@ class WSServer {
             ws,
             sessionID: this.sessionID += 1,
             heartbeatInterval: null,
-
         }
         this.clients.add(client)
 
@@ -34,7 +34,7 @@ class WSServer {
                 case "HEARTBEAT":
                     this.handleHeartbeat(client)
                     break
-                case "LOAD_LEADERBOARD":
+                case "LEADERBOARD":
                     leaderboard.handleLoadLeaderboard(client, request)
                     break
                 case "ERROR":
@@ -44,7 +44,15 @@ class WSServer {
     }
 
     handleHeartbeat(client) {
-        // We won't
+
+        // Clear the previous interval
+        if (client.heartbeatInterval) {
+            clearInterval(client.heartbeatInterval)
+        }
+        // Set the new interval
+        client.heartbeatInterval = setInterval(() => {
+            client.ws.close(constants.errorCodes.MAX_HEARTBEAT_TOLERANCE_REACHED)
+        }, constants.MAX_HEARTBEAT_TOLERANCE)
     }
 
 
