@@ -1,3 +1,4 @@
+const constants = require("./constants.json");
 const strings = new (require('./strings.js'))()
 
 class Unwrapper {
@@ -60,6 +61,39 @@ class Unwrapper {
     unwrapNotInGame(array) {
         const type = this.readBits(array, 3);
         switch (type) {
+            case 0: {
+                return {
+                    action: "SITE",
+                    mwCode: this.readBits(array, 14)
+                }
+            }
+            case 1: {
+                return this.unwrapJoinLobby(array);
+            }
+            case 2: {
+                return {
+                    action: "GAME",
+                    previewID: this.readBits(array, 4)
+                }
+            }
+            case 3: {
+                return { action: "SINGLEPLAYER" } // We are not actively concerned with how many people are playing singleplayer
+            }
+            case 5: {
+                return {
+                    action: "HEARTBEAT"
+                }
+            }
+            case 6: {
+                return { // Should not be necessary though, since we only have one server
+                    action: "SWITCH",
+                    lobbyServer: this.readBits(array, 8),
+                    gameID: this.readBits(array, 10),
+                    playerID: this.readBits(array, 9),
+                    mwIDms: this.readBits(array, 10),
+                    mwCode: this.readBits(array, 14)
+                }
+            }
             case 7: {
                 return this.unwrapExtendedNotInGame(array)
             }
@@ -68,6 +102,23 @@ class Unwrapper {
                     action: "ERROR"
                 }
             }
+        }
+    }
+
+    unwrapJoinLobby(array) {
+        return {
+            action: "LOBBY",
+            mwIDms: this.readBits(array, 10),
+            lshID: this.readBits(array, 20),
+            lshTime: this.readBits(array, 10),
+            rgb: [this.readBits(array, 6), this.readBits(array, 6), this.readBits(array, 6)],
+            password: 2**24 * this.readBits(array, 24) + this.readBits(array, 24),
+            mwCode: this.readBits(array, 14),
+            device: this.readBits(array, 4),
+            validHostName: this.readBits(array, 1),
+            mwIFrame: this.readBits(array, 1),
+            timezone: this.readBits(array, 5),
+            name: this.decodeNames(constants.MAX_NAME_LENGTH, array).trim(),
         }
     }
 

@@ -3,9 +3,11 @@
     "errorCodes": {
         "mwCodeError_LB": 4321,
         "mwCodeError_MP": 4211,
-        "MAX_HEARTBEAT_TOLERANCE_REACHED": 4281
+        "MAX_WS_TOLERANCE_REACHED": 4281,
+        "lobbyTimeout": 4207
     },
-    "MAX_HEARTBEAT_TOLERANCE": 3E4,
+    "MAX_WS_TOLERANCE": 3E4,
+    "MAX_NAME_LENGTH": 20,
     "db": {
         "path": "./db/db.db",
         "tables": [

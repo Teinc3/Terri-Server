@@ -1,3 +1,4 @@
 node_modules
 .idea
 /db/db.db-journal
+/db/db.db

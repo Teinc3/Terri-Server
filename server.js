@@ -6,8 +6,8 @@ class WSServer {
     constructor(server) {
         this.server = server
         this.clients = new Set()
-        this.ongoingGames = new Set()
-        this.lobby = new Set()
+        this.publicLobby = null
+        this.lobbies = new Set() // Private, user-created
         this.sessionID = 0;
 
         server.on('connection', (ws, req) => this.onConnection(ws))
@@ -18,8 +18,10 @@ class WSServer {
         const client = {
             ws,
             sessionID: this.sessionID += 1,
-            heartbeatInterval: null,
+            timeoutInterval: null,
+            lastAction: null
         }
+        this.handleTimeoutInterval(client, null);
         this.clients.add(client)
 
         ws.on('message', (m) => {
@@ -32,27 +34,44 @@ class WSServer {
             // Handle the request
             switch (request.action) {
                 case "HEARTBEAT":
-                    this.handleHeartbeat(client)
                     break
                 case "LEADERBOARD":
                     leaderboard.handleLoadLeaderboard(client, request)
                     break
+                case "LOBBY":
+                    break;
                 case "ERROR":
-                    break
+                    return
+            }
+
+            // Update the last action
+            client.lastAction = request.action
+
+            this.handleTimeoutInterval(client, request.action)
+        });
+        
+        ws.on('close', (code) => {
+            this.clients.delete(client)
+            if (client.timeoutInterval) {
+                clearInterval(client.timeoutInterval)
             }
         });
     }
 
-    handleHeartbeat(client) {
-
+    handleTimeoutInterval(client, action) {
+        // If heartbeat and last client action is load site or leaderboard, ignore
+        if (action === "HEARTBEAT" && (client.lastAction === "SITE" || client.lastAction === "LEADERBOARD")) {
+            return
+        }
+        
         // Clear the previous interval
-        if (client.heartbeatInterval) {
-            clearInterval(client.heartbeatInterval)
+        if (client.timeoutInterval) {
+            clearInterval(client.timeoutInterval)
         }
         // Set the new interval
-        client.heartbeatInterval = setInterval(() => {
-            client.ws.close(constants.errorCodes.MAX_HEARTBEAT_TOLERANCE_REACHED)
-        }, constants.MAX_HEARTBEAT_TOLERANCE)
+        client.timeoutInterval = setInterval(() => {
+            client.ws.close(constants.errorCodes.MAX_WS_TOLERANCE_REACHED)
+        }, constants.MAX_WS_TOLERANCE)
     }
 
 
