@@ -46,7 +46,7 @@ class Strings {
         let lBracketIndex = name.indexOf("[");
         let rBracketIndex = name.indexOf("]");
         if (lBracketIndex < 0 || rBracketIndex < 0 || rBracketIndex - lBracketIndex - 1 >= 8 || rBracketIndex - lBracketIndex - 1 <= 0) return false;
-        return name.substring(lBracketIndex + 1, rBracketIndex);
+        return name.substring(lBracketIndex + 1, rBracketIndex).toUpperCase();
     }
 
     convertToCharcode(string) {

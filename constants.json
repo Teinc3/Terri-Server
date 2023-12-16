@@ -9,6 +9,8 @@
     },
     "MAX_WS_TOLERANCE": 3E4,
     "MAX_NAME_LENGTH": 20,
+    "mapCount": 16,
+    "MAX_SPAWN_SEED": 16384,
     "preview": {
         "previewInterval": 7E3,
         "updateInterval": 1E3,
@@ -40,8 +42,10 @@
         "ZOMBIE": 9,
         "NFS": 10
     },
-    "mapCount": 16,
-    "PREVIEW_TTL": 42,
+    "packet": {
+        "GAME_INIT_BUFFER": 3920,
+        "PACKET_BUFFER_INTERVAL": 392
+    },
     "db": {
         "path": "./db/db.db",
         "tables": [

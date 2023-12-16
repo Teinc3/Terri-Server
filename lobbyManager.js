@@ -1,5 +1,6 @@
 const strings = new (require('./strings.js'))()
 const wrapper = new (require('./wrapper.js'))()
+const GameInstance = require('./gameInstance.js')
 const constants = require("./constants.json")
 
 class LobbyManager {
@@ -47,7 +48,10 @@ class LobbyManager {
             password: request.password,
             rgb: request.rgb,
             mwIDms: request.mwIDms,
-            validHostName: request.validHostName
+            validHostName: request.validHostName,
+            // Check password and load ELO to determine cursive name
+            ELO: 0,
+            cursiveName: true
         }
 
         // If there are no preview games in the lobby, generate them
@@ -132,13 +136,7 @@ class LobbyManager {
             if (previewGame.progress <= 0) {
                 // Remove this game, and instantiate a new game to the set of games
                 this.previewGames.splice(i, 1);
-                // ...
-                // Then we will remove the player from receiving preview games packets
-                // ...
-
-                if (this.previewGames.length < constants.preview.MAX_PREVIEW_GAME_COUNT) {
-                    this.generatePreviewGames();
-                }
+                this.instantiateGame(previewGame);
             }
             // Update clan information
             if (previewGame.mode <= constants.modes.TEAMS_MAX) {
@@ -172,6 +170,51 @@ class LobbyManager {
         this.intervals.update = setInterval(() => {
             this.updatePreviewGames();
         }, constants.preview.updateInterval);
+    }
+
+    instantiateGame(previewGame) {
+
+        if (previewGame.mode === constants.modes.DUEL) {
+            // Sort clients by ELO and sessionID
+            const sortedClients = [...previewGame.clients].sort((a, b) => {
+                if (a.info.ELO === b.info.ELO) {
+                    return a.sessionID - b.sessionID;
+                }
+                return b.info.ELO - a.info.ELO;
+            });
+    
+            // Pair players and create game instances
+            while (sortedClients.length >= 2) {
+                const clients = sortedClients.splice(0, 2);
+                const gameInstance = new GameInstance(previewGame, clients, this);
+                this.ongoingGames.add(gameInstance);
+            }
+        } else {
+            // Sort clients by sessionID
+            const sortedClients = [...previewGame.clients].sort((a, b) => a.sessionID - b.sessionID).slice(0, previewGame.nMaxPlayers);
+    
+            // Existing code
+            if (sortedClients.length >= 1) {
+                const gameInstance = new GameInstance(previewGame, sortedClients, this);
+                this.ongoingGames.add(gameInstance);
+            }
+        }
+
+        /* if (previewGame.clients.length >= 2 || previewGame.clients.length === 1 && previewGame.mode !== constants.modes.DUEL) {
+            const gameInstance = new GameInstance(previewGame, [...previewGame.clients], this);
+            this.ongoingGames.add(gameInstance);
+
+            // Then we will remove the player from receiving preview games packets
+            for (const client of previewGame.clients) {
+                this.clients.delete(client);
+                client.ws.send(wrapper.wrapGameInit(gameInstance));
+            }
+            // Send game instance to clients
+        } */
+
+        if (this.previewGames.length < constants.preview.MAX_PREVIEW_GAME_COUNT) {
+            this.generatePreviewGames();
+        }
     }
 
     getRandomMode() {

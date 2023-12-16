@@ -19,11 +19,8 @@ class Wrapper {
     }
 
     wrapLeaderboard(id, position, entries) {
-        const names = [];
         const arrayBitCount = entries.reduce((acc, entry) => {
-            const nameArray = strings.convertToCharcode(entry.USERNAME);
-            names.push(nameArray);
-            return acc + nameArray.length * 10 + 14 + 5
+            return acc + entry.USERNAME.length * 10 + 14 + 5
         }, 1 + 2 + 1 + 1 + 16 + 4)
         const array = new Uint8Array(this.getByteCount(arrayBitCount));
         this.index = 0;
@@ -33,9 +30,9 @@ class Wrapper {
         this.setBits(array, 1, id);
         this.setBits(array, 16, position);
         this.setBits(array, 4, entries.length);
-        for (const i in entries) {
-            this.setBits(array, 14, entries[i].ELO);
-            const name = names[i];
+        for (const entry of entries) {
+            this.setBits(array, 14, entry.ELO);
+            const name = strings.convertToCharcode(entry.USERNAME);
             this.setBits(array, 5, name.length);
             for (const charCode of name) {
                 this.setBits(array, 10, charCode);
@@ -52,7 +49,7 @@ class Wrapper {
 
         const games_clans = [];
 
-        const arrayLength = this.getByteCount(previewGames.reduce((acc, game, index) => {
+        const arrayLength = this.getByteCount(previewGames.reduce((acc, game) => {
             let clanBitCount = 0,
                 i = 0;
             games_clans.push([]);
@@ -106,6 +103,43 @@ class Wrapper {
             }
         }
 
+        return array;
+    }
+
+    wrapGameInit(game, playerID) {
+        const is1v1 = game.mode === 8;
+        const arrayLength = this.getByteCount(1 + 2 + 10 + 10 + 14 + 4 + 1 + 6 + 14 + 
+            (is1v1 ? 1 + 2 * 14 : 9 + 9) + game.clients.reduce((acc, client) => {
+                return acc + 1 + 3 * 6 + 5 + 10 * client.info.name.length
+            }, 0));
+        const array = new Uint8Array(arrayLength);
+        this.index = 0;
+        this.setBits(array, 1, 0);
+        this.setBits(array, 2, is1v1 ? 3 : 2);
+        this.setBits(array, 10, 0); // No redirects for now
+        this.setBits(array, 10, 0); // No gameHash since no redirects
+
+        this.setBits(array, is1v1 ? 1 : 9, playerID);
+        this.setBits(array, 14, game.spawnSeed);
+        this.setBits(array, 4, game.mode);
+        this.setBits(array, 1, game.isContest ? 1 : 0);
+        this.setBits(array, 6, game.mapID);
+        this.setBits(array, 14, game.mapSeed);
+        
+        if (!is1v1) {
+            this.setBits(array, 9, game.playerCount - 1);
+        }
+        for (const client of game.clients) {
+            this.setBits(array, 1, client.info.cursiveName);
+            client.info.rgb.forEach(color => this.setBits(array, 6, color));
+            if (is1v1) {
+                this.setBits(array, 14, client.info.ELO);
+            }
+            this.setBits(array, 5, client.info.name.length);
+            for (const charCode of strings.convertToCharcode(client.info.name)) {
+                this.setBits(array, 10, charCode);
+            }
+        }
         return array;
     }
 }
