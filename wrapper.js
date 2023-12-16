@@ -58,22 +58,24 @@ class Wrapper {
             games_clans.push([]);
             for (const clan of game.clans) {
                 const lastClan = games_clans[games_clans.length - 1];
-                if (i >= 5) { // Don't tell anyone, but if there are only 5 clans, the last one is shown as ""
-                    if (i === 5) {
-                        lastClan.push({ name: strings.convertToCharcode(""), count: 0 })
-                        clanBitCount += 3 + 9;
-                    }
-                    lastClan[lastClan.length - 1].count += clan.players.length;
+                if (i >= 5) { // Added check for 5th and onward clans
+                    lastClan[lastClan.length - 1].count += clan.count;
                 } else {
-                    lastClan.push({ name: strings.convertToCharcode(clan.name), count: clan.players.length })
-                    clanBitCount += 10 * clan.name.length + 3 + 9;
+                    if (i === 4 && game.clans.length > 5) { // Added check for more than 5 clans
+                        lastClan.push({ name: strings.convertToCharcode(""), count: clan.count })
+                        clanBitCount += 3 + 9;
+                    } else {
+                        lastClan.push({ name: strings.convertToCharcode(clan.name), count: clan.count })
+                        clanBitCount += 10 * clan.name.length + 3 + 9;
+                    }
                 }
                 i++;
             }
-            return 5 + 4 + 1 + 6 + 14 + exponent + 9 + 10 + 3 + clanBitCount;
-        }, 1 + 2 + 6 + exponent * 4));
+            return acc + 5 + 4 + 1 + 6 + 14 + exponent + 9 + 10 + 3 + clanBitCount;
+        }, 0) + 1 + 2 + 6 + exponent * 4);
 
         const array = new Uint8Array(arrayLength);
+        this.index = 0;
         this.setBits(array, 1, 0);
         this.setBits(array, 2, 1);
         this.setBits(array, 6, exponent);
@@ -82,9 +84,10 @@ class Wrapper {
         this.setBits(array, exponent, clientSet.size); //In the future, also include private lobbies
         this.setBits(array, exponent, 0);
 
+        this.setBits(array, 4, previewGames.length)
         for (const index in previewGames) {
             const game = previewGames[index];
-            this.setBits(array, 5, game.gameID);
+            this.setBits(array, 5, game.previewID);
             this.setBits(array, 4, game.mode);
             this.setBits(array, 1, game.isContest ? 1 : 0);
             this.setBits(array, 6, game.mapID);

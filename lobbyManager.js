@@ -11,8 +11,8 @@ class LobbyManager {
             update: null
         }
         this.previewInterval = null;
-        this.currentGameID = -1;
-        this.games = new Set();
+        this.currentPreviewID = -1;
+        this.ongoingGames = new Set();
     }
 
     assignLobby(client, request) {
@@ -25,10 +25,19 @@ class LobbyManager {
             this.clients.delete(client);
             if (client.timeoutInterval) {
                 clearInterval(client.timeoutInterval)
+                client.timeoutInterval = null;
             }
+            // Search for clients in the preview games and remove them
+            for (const previewGame of this.previewGames) {
+                if (previewGame.clients.includes(client)) {
+                    previewGame.clients.splice(previewGame.clients.indexOf(client), 1);
+                }
+            }
+
+            // Clear all intervals if there are no players
             if (this.clients.size === 0) {
-                clearInterval(this.intervals.preview);
-                clearInterval(this.intervals.update);
+                this.previewGames = [];
+                this.resetIntervals()
             }
         });
 
@@ -47,26 +56,46 @@ class LobbyManager {
         }
     }
 
+    assignGame(client, request) {
+        // See if game exists
+        const game = this.previewGames.find((game) => game.previewID === request.previewID);
+        if (!game) return null
+        // If client is already in the game, remove them, otherwise add them
+        if (game.clients.includes(client)) {
+            game.clients.splice(game.clients.indexOf(client), 1);
+        } else {
+            // Remove client from all other games
+            for (const previewGame of this.previewGames) {
+                if (previewGame !== game && previewGame.clients.includes(client)) {
+                    previewGame.clients.splice(previewGame.clients.indexOf(client), 1);
+                }
+            }
+            game.clients.push(client);
+        }
+    }
+
     generatePreviewGames() {
         
         // Clear the preview interval before setting it again
         if (this.intervals.preview) {
             clearInterval(this.intervals.preview);
+            this.intervals.preview = null;
         }
 
         // Generate preview games
-        let contestExists = this.previewGames.findIndex((game) => game.isContest) >= 0 ;
+        let contestExists = this.previewGames.findIndex((game) => game.isContest) >= 0;
+        let nextPreviewTime = constants.preview.previewInterval / 1E3 + (this.previewGames.length > 0 ? this.previewGames[this.previewGames.length - 1].progress : 0);
         if (!contestExists) {
             for (let i = this.previewGames.length; i < constants.preview.MAX_PREVIEW_GAME_COUNT; i++) {
                 const mode = this.getRandomMode();
                 const previewGame = {
-                    gameID: this.getNewGameID(),
+                    previewID: this.getNewPreviewID(),
                     mode,
                     isContest: !contestExists && mode <= constants.modes.TEAMS_MAX && Math.random() < constants.preview.MODE_WEIGHTS.CONTEST_CHANCE,
                     mapID: this.getRandomMapID(mode),
                     mapSeed: Math.floor(16384 * Math.random()),
                     nMaxPlayers: mode === constants.modes.DUEL ? 2 : 512,
-                    progress: constants.PREVIEW_TTL,
+                    progress: nextPreviewTime,
                     clients: [],
                     clans: []
                 }
@@ -75,6 +104,7 @@ class LobbyManager {
                     contestExists = true;
                     break;
                 }
+                nextPreviewTime += 7;
             }
         }
 
@@ -89,20 +119,45 @@ class LobbyManager {
 
     updatePreviewGames() {
 
+        // Clear the update interval before setting it again
+        if (this.intervals.update) {
+            clearInterval(this.intervals.update);
+        }
+
         // Update preview games
-        for (const previewGame of this.previewGames) {
+
+        for (let i = this.previewGames.length - 1; i >= 0; i--) {
+            const previewGame = this.previewGames[i];
             previewGame.progress -= 1;
             if (previewGame.progress <= 0) {
                 // Remove this game, and instantiate a new game to the set of games
-                this.previewGames.splice(this.previewGames.indexOf(previewGame), 1);
+                this.previewGames.splice(i, 1);
                 // ...
                 // Then we will remove the player from receiving preview games packets
                 // ...
 
-
-                // See if we need to call generatePreviewGames() to fill up the preview games
+                if (this.previewGames.length < constants.preview.MAX_PREVIEW_GAME_COUNT) {
+                    this.generatePreviewGames();
+                }
+            }
+            // Update clan information
+            if (previewGame.mode <= constants.modes.TEAMS_MAX) {
+                previewGame.clans = [];
+                for (const client of previewGame.clients) {
+                    const clanName = strings.isValidClan(client.info.name);
+                    if (clanName) {
+                        const clan = previewGame.clans.find((clan) => clan.name === clanName);
+                        if (clan) {
+                            clan.count += 1;
+                        } else {
+                            previewGame.clans.push({ name: clanName, count: 1 });
+                        }
+                    }
+                }
+                previewGame.clans.sort((a, b) => b.count - a.count);
             }
         }
+
         // Send preview games to clients
         for (const client of this.clients) {
             const message = wrapper.wrapLobby(this.clients, this.previewGames);
@@ -111,13 +166,7 @@ class LobbyManager {
 
         // Clear all intervals if there are no players
         if (this.clients.size === 0) {
-            clearInterval(this.intervals.preview);
-            clearInterval(this.intervals.update);
-        }
-
-        // Clear the update interval before setting it again
-        if (this.intervals.update) {
-            clearInterval(this.intervals.update);
+            this.resetIntervals()
         }
 
         this.intervals.update = setInterval(() => {
@@ -127,19 +176,14 @@ class LobbyManager {
 
     getRandomMode() {
         const probi = Math.random();
-        switch (probi) {
-            case probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE: {
-                return constants.modes.DUEL;
-            }
-            case probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE + constants.preview.MODE_WEIGHTS.FFA_CHANCE: {
-                return Math.random() < constants.preview.MODE_WEIGHTS.NFS_FFA_CHANCE ? constants.modes.NFS : constants.modes.FFA
-            }
-            case probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE + constants.preview.MODE_WEIGHTS.FFA_CHANCE + constants.preview.MODE_WEIGHTS.ZOMBIE_CHANCE: {
-                return constants.modes.ZOMBIE;
-            }
-            default: {
-                return Math.floor((constants.modes.TEAMS_MAX + 1) * Math.random())
-            }
+        if (probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE) {
+            return constants.modes.DUEL;
+        } else if (probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE + constants.preview.MODE_WEIGHTS.FFA_CHANCE) {
+            return Math.random() < constants.preview.MODE_WEIGHTS.NFS_FFA_CHANCE ? constants.modes.NFS : constants.modes.FFA
+        } else if (probi < constants.preview.MODE_WEIGHTS.DUEL_CHANCE + constants.preview.MODE_WEIGHTS.FFA_CHANCE + constants.preview.MODE_WEIGHTS.ZOMBIE_CHANCE) {
+            return constants.modes.ZOMBIE;
+        } else {
+            return Math.floor((constants.modes.TEAMS_MAX + 1) * Math.random())
         }
     }
 
@@ -174,12 +218,19 @@ class LobbyManager {
         }
     }
 
-    getNewGameID() {
-        this.currentGameID++;
-        if (this.currentGameID >= 16) {
-            this.currentGameID = 0;
+    getNewPreviewID() {
+        this.currentPreviewID++;
+        if (this.currentPreviewID > constants.preview.MAX_PREVIEW_ID) {
+            this.currentPreviewID = 0;
         }
-        return this.currentGameID;
+        return this.currentPreviewID;
+    }
+
+    resetIntervals() {
+        clearInterval(this.intervals.preview);
+        clearInterval(this.intervals.update);
+        this.intervals.preview = null;
+        this.intervals.update = null;
     }
 }
 

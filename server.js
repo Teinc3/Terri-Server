@@ -33,7 +33,7 @@ class WSServer {
             // Unwrap the request
             const request = unwrapper.unwrap(m)
 
-            if (request?.mwCode !== constants.mwCode) {
+            if (Object.hasOwn(request, "mwCode") && request.mwCode !== constants.mwCode) {
                 return client.ws.close(constants.errorCodes.mwCodeError_LB)
             }
 
@@ -48,6 +48,9 @@ class WSServer {
                     // Handle Lobby, transfer client object to lobby object
                     lobbyManager.assignLobby(client, request)
                     this.clients.delete(client)
+                    break;
+                case "GAME":
+                    lobbyManager.assignGame(client, request)
                     break;
                 case "ERROR":
                     return
