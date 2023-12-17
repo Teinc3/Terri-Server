@@ -1,4 +1,4 @@
-const unwrapper = new (require("./unwrapper.js"))()
+const Unwrapper = require("./unwrapper.js")
 const dbManager = new (require("./dbManager.js"))()
 const lobbyManager = new (require("./lobbyManager.js"))()
 const constants = require("./constants.json")
@@ -7,7 +7,6 @@ class WSServer {
     constructor(server) {
         this.server = server
         this.clients = new Set()
-        this.publicLobby = null
         this.lobbies = new Set() // Private, user-created
         this.sessionID = 0;
 
@@ -31,7 +30,7 @@ class WSServer {
             if (!(m instanceof Buffer)) return ws.close(constants.errorCodes.notBuffered)
 
             // Unwrap the request
-            const request = unwrapper.unwrap(m)
+            const request = new Unwrapper().unwrap(m)
 
             if (Object.hasOwn(request, "mwCode") && request.mwCode !== constants.mwCode) {
                 return client.ws.close(constants.errorCodes.mwCodeError_LB)
@@ -69,6 +68,10 @@ class WSServer {
                 case "END_GAME": {
                     request.playerID = client.playerID
                     client.gameInstance.endGame(request)
+                    break;
+                }
+                case "SITE": {
+                    dbManager.handleLoadSite(client)
                     break;
                 }
                 case "ERROR": {

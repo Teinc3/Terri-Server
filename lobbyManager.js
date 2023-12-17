@@ -1,5 +1,6 @@
 const strings = new (require('./strings.js'))()
-const wrapper = new (require('./wrapper.js'))()
+const dbManager = new (require('./dbManager.js'))()
+const Wrapper = require('./wrapper.js')
 const GameInstance = require('./gameInstance.js')
 const constants = require("./constants.json")
 
@@ -22,7 +23,7 @@ class LobbyManager {
 
         // Assign client to this lobby's set of clients
         this.clients.add(client);
-        client.ws.on('close', (code) => { // Remove the client from the lobby's set when they disconnect
+        client.ws.on('close', (_) => { // Remove the client from the lobby's set when they disconnect
             this.clients.delete(client);
             if (client.timeoutInterval) {
                 clearInterval(client.timeoutInterval)
@@ -51,8 +52,10 @@ class LobbyManager {
             validHostName: request.validHostName,
             // Check password and load ELO to determine cursive name
             ELO: 0,
-            cursiveName: true
+            cursiveName: false
         }
+
+        dbManager.loadELO(client);
 
         // If there are no preview games in the lobby, generate them
         if (this.previewGames.length === 0) {
@@ -158,7 +161,7 @@ class LobbyManager {
 
         // Send preview games to clients
         for (const client of this.clients) {
-            const message = wrapper.wrapLobby(this.clients, this.previewGames);
+            const message = new Wrapper().wrapLobby(this.clients, this.previewGames);
             client.ws.send(message);
         }
 
@@ -175,10 +178,11 @@ class LobbyManager {
     instantiateGame(previewGame) {
 
         if (previewGame.mode === constants.modes.DUEL) {
-            // Sort clients by ELO and sessionID
-            const sortedClients = [...previewGame.clients].sort((a, b) => {
+            // Sort clients by ELO then by order of game selection
+            const originalClients = [...previewGame.clients];
+            const sortedClients = originalClients.sort((a, b) => {
                 if (a.info.ELO === b.info.ELO) {
-                    return a.sessionID - b.sessionID;
+                    return originalClients.indexOf(a) - originalClients.indexOf(b);
                 }
                 return b.info.ELO - a.info.ELO;
             });
@@ -190,27 +194,12 @@ class LobbyManager {
                 this.ongoingGames.add(gameInstance);
             }
         } else {
-            // Sort clients by sessionID
-            const sortedClients = [...previewGame.clients].sort((a, b) => a.sessionID - b.sessionID).slice(0, previewGame.nMaxPlayers);
-    
-            // Existing code
+            const sortedClients = previewGame.clients.slice(0, previewGame.nMaxPlayers);
             if (sortedClients.length >= 1) {
                 const gameInstance = new GameInstance(previewGame, sortedClients, this);
                 this.ongoingGames.add(gameInstance);
             }
         }
-
-        /* if (previewGame.clients.length >= 2 || previewGame.clients.length === 1 && previewGame.mode !== constants.modes.DUEL) {
-            const gameInstance = new GameInstance(previewGame, [...previewGame.clients], this);
-            this.ongoingGames.add(gameInstance);
-
-            // Then we will remove the player from receiving preview games packets
-            for (const client of previewGame.clients) {
-                this.clients.delete(client);
-                client.ws.send(wrapper.wrapGameInit(gameInstance));
-            }
-            // Send game instance to clients
-        } */
 
         if (this.previewGames.length < constants.preview.MAX_PREVIEW_GAME_COUNT) {
             this.generatePreviewGames();

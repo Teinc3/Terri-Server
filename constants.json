@@ -76,7 +76,7 @@
         "path": "./db/db.db",
         "tables": [
             "PLAYERS",
-            "TEAMS"
+            "CLANS"
         ]
     }
 }

@@ -1,5 +1,7 @@
-const wrapper = new (require("./wrapper.js"))();
+const Wrapper = require("./wrapper.js");
+const dbManager = new (require("./dbManager.js"))();
 const constants = require("./constants.json")
+const strings = new (require("./strings.js"))();
 
 class GameInstance {
     constructor(previewGame, clients, lobbyManager) {
@@ -52,7 +54,13 @@ class GameInstance {
                     lobbyManager.ongoingGames.delete(this);
                 }
             });
-        }) 
+        })
+        this.clientInfo = this.clients.map(client => {
+            return {
+                ...client.info,
+                playerID: client.playerID
+            }
+        });
         this.updateInterval = null;
         this.distributeInit(lobbyManager);
 
@@ -66,7 +74,7 @@ class GameInstance {
         }
 
         // Distribute commands to all clients
-        const message = wrapper.wrapPublicCommands(this.getNewPacketID(), this.pendingCommands);
+        const message = new Wrapper().wrapPublicCommands(this.getNewPacketID(), this.pendingCommands);
         this.clients.forEach(client => {
             client.ws.send(message);
         });
@@ -83,6 +91,7 @@ class GameInstance {
 
     distributeInit(lobbyManager) {
         // Wrap the game init packet, then edit the bits for the playerID and send it to each client
+        const wrapper = new Wrapper();
         const array = wrapper.wrapGameInit(this, 0);
         const is1v1 = this.mode === 8;
         this.clients.forEach(client => {
@@ -95,6 +104,7 @@ class GameInstance {
     }
 
     getPrivateCommand(request) {
+        const wrapper = new Wrapper();
         switch (request.type) {
             case "PRIVATE_EMOJI": {
                 const client = this.clients.find(client => client.playerID === request.targetID);
@@ -122,7 +132,7 @@ class GameInstance {
         }
     }
 
-    endGame(request) {
+    endGame(request) { // This is funny because I didn't even use the hash
         this.resultCount += 1;
         if (request.type === "WIN") {
             // If winnerID is already in the results, add the playerID to the array, otherwise create a new array
@@ -169,9 +179,20 @@ class GameInstance {
                 }
                 this.winnerConfirmed(winnerID);
             } else {
-                // If no player has 80% of the votes and mode is 1v1, then we suspect someone is cheating
-                // Add a flag to both players' accounts
-                // For team games, we will just not confirm a winner
+                if (this.mode === 8) {
+                    // If both players vote opposite then we suspect someone is cheating
+                    // Flag the accounts that have their playerIDs in the array of result winnerID attribute
+                    let flaggedPasswords = [];
+                    if (this.results.hasOwnProperty("0")) {
+                        flaggedPasswords.push(this.clients.find(client => client.playerID === 0).info.password)
+                    }
+                    if (this.results.hasOwnProperty("1")) {
+                        flaggedPasswords.push(this.clients.find(client => client.playerID === 1).info.password)
+                    }
+                    dbManager.flagAccounts(flaggedPasswords);
+                } else {
+                    // We just don't confirm a winner and discard the game
+                }
             }
         }
 
@@ -187,10 +208,29 @@ class GameInstance {
         // If winnerID is a string, it is a stalemate
         if (winnerID.includes(",")) {
             // Split the string into an array of playerIDs
+            // noinspection JSCheckFunctionSignatures
             winnerID = winnerID.split(",").map(playerID => parseInt(playerID));
-            console.log("Stalemate between players " + winnerID);
         } else {
-            console.log("Winner is player " + winnerID);
+            winnerID = parseInt(winnerID);
+            const winner = this.clientInfo.find(info => info.playerID === winnerID);
+            if (this.mode <= constants.modes.TEAMS_MAX) {
+                // Take the clan of the winner
+                let clan = strings.isValidClan(winner.name);
+                if (clan) {
+                    dbManager.addClanWin(clan, this.playerCount, this.mapID, this.isContest);
+                }
+            } else if (this.mode === constants.modes.FFA || this.mode === constants.modes.NFS) {
+                // Add a win to the winner's account
+                dbManager.addFFAWin(winner.name, this.playerCount, this.mapID);
+            } else if (this.mode === constants.modes.DUEL) {
+                // Add a win to the winner's account
+                dbManager.add1v1Win(winner, this.clientInfo[1 - winner.playerID]);
+            } else { // ZOMBIES
+                // If the winner is not a zombie
+                if (winner !== -1) {
+                    dbManager.addZombieWin(winner.name, this.playerCount)
+                }
+            }
         }
     }
 }

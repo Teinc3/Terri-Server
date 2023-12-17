@@ -19,9 +19,30 @@ class Wrapper {
         return Math.floor(bitCount / 8) + (bitCount % 8 > 0 ? 1 : 0)
     }
 
+    wrapSite(bestPlayer, bestClan) {
+        const array = new Uint8Array(this.getByteCount(
+            1 + 2 + 1 + 5 + bestPlayer.length * 10 + 3 + bestClan.length * 10 + 12 + 6
+        ));
+        this.index = 0;
+        this.setBits(array, 1, 0);
+        this.setBits(array, 2, 0);
+        this.setBits(array, 1, 0);
+        this.setBits(array, 5, bestPlayer.length);
+        for (const charCode of strings.convertToCharcode(bestPlayer)) {
+            this.setBits(array, 10, charCode);
+        }
+        this.setBits(array, 3, bestClan.length);
+        for (const charCode of strings.convertToCharcode(bestClan)) {
+            this.setBits(array, 10, charCode);
+        }
+        this.setBits(array, 12, 0);
+        this.setBits(array, 6, 0)
+        return array;
+    }
+
     wrapLeaderboard(id, position, entries) {
         const arrayBitCount = entries.reduce((acc, entry) => {
-            return acc + entry.USERNAME.length * 10 + 14 + 5
+            return acc + entry.NAME.length * 10 + 14 + 5
         }, 1 + 2 + 1 + 1 + 16 + 4)
         const array = new Uint8Array(this.getByteCount(arrayBitCount));
         this.index = 0;
@@ -32,8 +53,8 @@ class Wrapper {
         this.setBits(array, 16, position);
         this.setBits(array, 4, entries.length);
         for (const entry of entries) {
-            this.setBits(array, 14, entry.ELO);
-            const name = strings.convertToCharcode(entry.USERNAME);
+            this.setBits(array, 14, entry.POINTS);
+            const name = strings.convertToCharcode(entry.NAME);
             this.setBits(array, 5, name.length);
             for (const charCode of name) {
                 this.setBits(array, 10, charCode);
