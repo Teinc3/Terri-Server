@@ -1,4 +1,5 @@
 const strings = new (require('./strings.js'))()
+const constants = require("./constants.json")
 
 class Wrapper {
     constructor() {
@@ -116,7 +117,7 @@ class Wrapper {
         this.index = 0;
         this.setBits(array, 1, 0);
         this.setBits(array, 2, is1v1 ? 3 : 2);
-        this.setBits(array, 10, 0); // No redirects for now
+        this.setBits(array, 10, 1); // Use Server 1
         this.setBits(array, 10, 0); // No gameHash since no redirects
 
         this.setBits(array, is1v1 ? 1 : 9, playerID);
@@ -140,6 +141,89 @@ class Wrapper {
                 this.setBits(array, 10, charCode);
             }
         }
+        return array;
+    }
+
+    wrapPublicCommands(packetID, commands) {
+        const arrayLength = this.getByteCount(1 + 1 + 3 + commands.reduce((acc, command) => {
+                return acc + 3 + 9 + constants.packet.commandPacketLengths[command.type]
+            }, 0)
+        )
+        const array = new Uint8Array(arrayLength);
+        this.index = 0;
+        this.setBits(array, 1, 1);
+        this.setBits(array, 1, 0);
+        this.setBits(array, 3, packetID);
+
+        for (const command of commands) {
+            const actionID = constants.packet.commandIDs[command.type];
+            this.setBits(array, 3, actionID);
+            this.setBits(array, 9, command.playerID);
+            switch (actionID) {
+                case constants.packet.commandIDs.landAttack: {
+                    this.setBits(array, 10, command.ratio);
+                    this.setBits(array, 9, command.targetID);
+                    break;
+                }
+                case constants.packet.commandIDs.seaAttack: {
+                    this.setBits(array, 10, command.ratio);
+                    this.setBits(array, 11, command.x);
+                    this.setBits(array, 11, command.y);
+                    break;
+                }
+                case constants.packet.commandIDs.cancelAttack: {
+                    this.setBits(array, 9, command.targetID);
+                    break;
+                }
+                case constants.packet.commandIDs.publicEmoji: {
+                    this.setBits(array, 7, command.emojiID);
+                    break;
+                }
+                case constants.packet.commandIDs.vote: {
+                    this.setBits(array, 1, command.vote);
+                    break;
+                }
+                case constants.packet.commandIDs.cancelSeaAttack: {
+                    this.setBits(array, 11, command.boatID);
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+        return array;
+    }
+
+    wrapPrivateEmoji(playerID, emojiID) { // We already know who the target is
+        const array = new Uint8Array(this.getByteCount(1 + 1 + 2 + 9 + 7));
+        this.index = 0;
+        this.setBits(array, 1, 1);
+        this.setBits(array, 1, 1);
+        this.setBits(array, 2, 0);
+        this.setBits(array, 9, playerID);
+        this.setBits(array, 7, emojiID);
+        return array;
+    }
+
+    wrapNonAggressionPact(playerID) {
+        const array = new Uint8Array(this.getByteCount(1 + 1 + 2 + 9));
+        this.index = 0;
+        this.setBits(array, 1, 1);
+        this.setBits(array, 1, 1);
+        this.setBits(array, 2, 1);
+        this.setBits(array, 9, playerID);
+        return array;
+    }
+
+    wrapOrder(playerID, targetID) {
+        const array = new Uint8Array(this.getByteCount(1 + 1 + 2 + 9 + 9));
+        this.index = 0;
+        this.setBits(array, 1, 1);
+        this.setBits(array, 1, 1);
+        this.setBits(array, 2, 2);
+        this.setBits(array, 9, playerID);
+        this.setBits(array, 9, targetID);
         return array;
     }
 }

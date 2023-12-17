@@ -1,5 +1,5 @@
 const unwrapper = new (require("./unwrapper.js"))()
-const leaderboard = new (require("./leaderboard.js"))()
+const dbManager = new (require("./dbManager.js"))()
 const lobbyManager = new (require("./lobbyManager.js"))()
 const constants = require("./constants.json")
 
@@ -11,7 +11,7 @@ class WSServer {
         this.lobbies = new Set() // Private, user-created
         this.sessionID = 0;
 
-        server.on('connection', (ws, req) => this.onConnection(ws))
+        server.on('connection', (ws, _) => this.onConnection(ws))
     }
 
     onConnection(ws) {
@@ -28,7 +28,7 @@ class WSServer {
 
         ws.on('message', (m) => {
             // Rejected if the message is not a buffer
-            if (!(m instanceof Buffer)) return ws.close(4300)
+            if (!(m instanceof Buffer)) return ws.close(constants.errorCodes.notBuffered)
 
             // Unwrap the request
             const request = unwrapper.unwrap(m)
@@ -39,21 +39,41 @@ class WSServer {
 
             // Handle the request
             switch (request.action) {
-                case "HEARTBEAT":
+                case "HEARTBEAT": {
                     break
-                case "LEADERBOARD":
-                    leaderboard.handleLoadLeaderboard(client, request)
+                }
+                case "LEADERBOARD": {
+                    dbManager.handleLoadLeaderboard(client, request)
                     break
-                case "LOBBY":
+                }
+                case "LOBBY": {
                     // Handle Lobby, transfer client object to lobby object
                     lobbyManager.assignLobby(client, request)
                     this.clients.delete(client)
                     break;
-                case "GAME":
+                }
+                case "GAME": {
                     lobbyManager.assignGame(client, request)
                     break;
-                case "ERROR":
+                }
+                case "PUBLIC_COMMAND": {
+                    request.playerID = client.playerID
+                    client.gameInstance.pendingCommands.push(request)
+                    break;
+                }
+                case "PRIVATE_COMMAND": {
+                    request.playerID = client.playerID
+                    client.gameInstance.getPrivateCommand(request)
+                    break;
+                }
+                case "END_GAME": {
+                    request.playerID = client.playerID
+                    client.gameInstance.endGame(request)
+                    break;
+                }
+                case "ERROR": {
                     return
+                }
             }
 
             // Update the last action
@@ -62,7 +82,7 @@ class WSServer {
             this.handleTimeoutInterval(client, request.action)
         });
         
-        ws.on('close', (code) => {
+        ws.on('close', (_) => {
             this.clients.delete(client)
             if (client.timeoutInterval) {
                 clearInterval(client.timeoutInterval)

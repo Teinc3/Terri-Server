@@ -2,7 +2,7 @@ const constants = require("./constants.json")
 const sqlite3 = require("sqlite3").verbose()
 const wrapper = new (require("./wrapper.js"))()
 
-class Leaderboard {
+class DBManager {
 
     async getIndex(db, position) {
         return new Promise((resolve, reject) => {
@@ -54,4 +54,4 @@ class Leaderboard {
     }
 }
 
-module.exports = Leaderboard;
+module.exports = DBManager;

@@ -53,8 +53,64 @@ class Unwrapper {
     }
 
     unwrapInGame(array) {
-        return {
-            action: "ERROR"
+        const commandID = this.readBits(array, 3);
+        switch (commandID) {
+            case 0: {
+                return {
+                    action: "PUBLIC_COMMAND",
+                    type: "landAttack",
+                    ratio: this.readBits(array, 10),
+                    targetID: this.readBits(array, 9)
+                }
+            }
+            case 1: {
+                return {
+                    action: "PUBLIC_COMMAND",
+                    type: "seaAttack",
+                    ratio: this.readBits(array, 10),
+                    x: this.readBits(array, 11),
+                    y: this.readBits(array, 11)
+                }
+            }
+            case 2: {
+                const data = {
+                    action: "PUBLIC_COMMAND",
+                    type: this.readBits(array, 1) === 0 ? "cancelAttack" : "cancelSeaAttack"
+                }
+                if (data.type === "cancelAttack") {
+                    data.targetID = this.readBits(array, 9);
+                } else {
+                    data.boatID = this.readBits(array, 11);
+
+                }
+                return data;
+            }
+            case 3: {
+                return this.unwrapEndGame(array);
+            }
+            case 4: {
+                return {
+                    action: "PUBLIC_COMMAND",
+                    type: "surrender"
+                }
+            }
+            case 5: {
+                return {
+                    action: "PUBLIC_COMMAND",
+                    type: "publicEmoji",
+                    emojiID: this.readBits(array, 7)
+                }
+            }
+            case 6: {
+                return this.unwrapPrivateCommand(array);
+            }
+            case 7: {
+                return {
+                    action: "PUBLIC_COMMAND",
+                    type: "vote",
+                    vote: this.readBits(array, 1) === 1
+                }
+            }
         }
     }
 
@@ -141,6 +197,60 @@ class Unwrapper {
         }
     }
 
+    unwrapEndGame(array) {
+        const type = this.readBits(array, 1);
+        switch (type) {
+            case 0: { // Normal win
+                return {
+                    action: "END_GAME",
+                    type: "WIN",
+                    hash: this.readBits(array, 12),
+                    winnerID: this.readBits(array, 10)
+                }
+            }
+            case 1: { // Stalemate
+                return {
+                    action: "END_GAME",
+                    type: "STALEMATE",
+                    hash: this.readBits(array, 12),
+                    winnerIDs: [this.readBits(array, 9), this.readBits(array, 9), this.readBits(array, 9)]
+                }
+            }
+        }
+    }
+
+    unwrapPrivateCommand(array) {
+        const type = this.readBits(array, 2);
+        switch (type) {
+            case 0: { // Private Emoji
+                return {
+                    action: "PRIVATE_COMMAND",
+                    type: "PRIVATE_EMOJI",
+                    targetID: this.readBits(array, 9),
+                    emojiID: this.readBits(array, 7)
+                }
+            }
+            case 1: { // Non-aggression pact
+                return {
+                    action: "PRIVATE_COMMAND",
+                    type: "NON_AGGRESSION",
+                    targetID: this.readBits(array, 9)
+                }
+            }
+            case 2: { // Order attack
+                const data =  {
+                    action: "PRIVATE_COMMAND",
+                    type: "ORDER",
+                    targetID: this.readBits(array, 9),
+                    receiverIDs: []
+                }
+                while (this.index + 8 <= array.length * 8) {
+                    data.receiverIDs.push(this.readBits(array, 9));
+                }
+                return data;
+            }
+        }
+    }
 }
 
 module.exports = Unwrapper

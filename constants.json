@@ -5,7 +5,8 @@
         "mwCodeError_MP": 4211,
         "MAX_WS_TOLERANCE_REACHED": 4281,
         "lobbyTimeout": 4207,
-        "invalidName": 4214
+        "invalidName": 4214,
+        "notBuffered": 4300
     },
     "MAX_WS_TOLERANCE": 3E4,
     "MAX_NAME_LENGTH": 20,
@@ -43,8 +44,33 @@
         "NFS": 10
     },
     "packet": {
+        "PACKET_ID_COUNT": 8,
         "GAME_INIT_BUFFER": 3920,
-        "PACKET_BUFFER_INTERVAL": 392
+        "PACKET_BUFFER_INTERVAL": 392,
+        "commandIDs": {
+            "landAttack": 0,
+            "seaAttack": 1,
+            "cancelAttack": 2,
+            "disconnect": 3,
+            "publicEmoji": 4,
+            "surrender": 5,
+            "vote": 6,
+            "cancelSeaAttack": 7
+        },
+        "commandPacketLengths": {
+            "landAttack": 20,
+            "seaAttack": 32,
+            "cancelAttack": 9,
+            "disconnect": 0,
+            "publicEmoji": 7,
+            "surrender": 0,
+            "vote": 1,
+            "cancelSeaAttack": 11
+        }
+    },
+    "win": {
+        "ENDGAME_CONFIDENCE": 0.9,
+        "WINNER_CONFIDENCE": 0.8
     },
     "db": {
         "path": "./db/db.db",
